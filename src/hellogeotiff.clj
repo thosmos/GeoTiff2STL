@@ -273,6 +273,15 @@
 ;               (conj! y1)
 ;               (conj! 0.0)))))))))
 
+(defn min-fn
+  ([x y]
+   (if (> y 0)
+     (min x y)
+     (if (> x 0)
+       x
+       Float/MAX_VALUE)))
+  ([x y & more]
+   (reduce min-fn (min-fn x y) more)))
 
 (defn -main
   "The Main."
@@ -280,32 +289,67 @@
   (println "GeoTIFF2STL!" args)
   ;(dostuff)
   (let [^String filename (first args)
+        multiplier (Float/parseFloat (get (vec args) 1))
+        z-lift (Float/parseFloat (get (vec args) 2))
         ^File file (File. filename)
         name (.getName file) ;
-        ^BufferedImage image (ImageIO/read file)
+        ^BufferedImage image (try
+                               (ImageIO/read file)
+                               (catch Exception ex (print ex)))
         width (.getWidth image)
         _ (println "width" width)
         height (.getHeight image)
         _ (println "height" height)
         ^Raster raster (.getData image)
         hmap (make-array Float/TYPE width height)
-        points (make-array Float/TYPE (* (+ (* height width) width height) 6 3 2))
-        stl (StlObject. name 0)]
+        ;samples (for [w (range width) h (range height)]
+        ;          (.getSample raster w h 0))
+        ;points (make-array Float/TYPE (* (+ (* height width) width height) 6 3 2))
+        ;stl (StlObject. name 0)
+        ]
 
-    (println "Loading elevation data")
-    (doseq [w (range width) h (range height)]
-      (let [sample (.getSample raster w h 0)]
-        (aset-float hmap (- (- width 1) w) h
-                    (if (> sample 0)
-                      (+ 10 (* 4 (/ sample 90)))
-                      0))))
+    (println "Calculating samples and min/max (z-lift: " z-lift ", mult: " multiplier ")")
+    (let [keys (vec (for [w (range width) h (range height)]
+                  [w h]))
+          samples (vec (for [[w h] keys]
+                     (let [s (.getSample raster w h 0)]
+                       (if (> s 0)
+                         (+ z-lift (* multiplier (/ s 100.0)))
+                         0))))
+          min (reduce min-fn samples)
+          max (reduce max samples)]
+      (println "min: " min "max: " max)
+      (when (> min 10)
+        (println "min is over 10, consider a lower z-lift value"))
+      (println "Converting to java array")
+      (doseq [i (range (count samples))]
+        (let [[w h] (get keys i)
+              sample (get samples i)]
+          (aset-float hmap (- (- width 1) w) h
+                     sample))))
 
-    (println "Calculating min/max")
-    (let [vecs (map #(into [] %) (into [] hmap))
-          min-max (reduce (fn [in val] {:min (min (:min in) (apply min val))
-                                        :max (max (:max in) (apply max val))})
-                          {:min Float/MAX_VALUE :max Float/MIN_VALUE} vecs)]
-      (println min-max))
+    ;(doseq [w (range width) h (range height)]
+    ;  (let [s (.getSample raster w h 0)]
+    ;    (aset-float minmax 0 (min-fn (aget minmax 0) s))
+    ;    (aset-float minmax 1 (max (aget minmax 1) s))))
+
+    ;(println "Loading elevation data")
+    ;(doseq [w (range width) h (range height)]
+    ;  (let [sample (.getSample raster w h 0)]
+    ;    (aset-float hmap (- (- width 1) w) h
+    ;                (if (> sample 0)
+    ;                  (+ 10 (* 4 (/ sample 90)))
+    ;                  0))))
+
+
+
+    ;(println "Calculating min/max")
+    ;(let [vecs (map #(into [] %) (into [] hmap))
+    ;      min-max (reduce (fn [in val] {:min (min-fn (:min in) (apply min-fn val))
+    ;                                    :max (max (:max in) (apply max val))})
+    ;                      {:min Float/MAX_VALUE :max Float/MIN_VALUE} vecs)
+    ;      ]
+    ;  (println min-max))
 
     (println "Saving STL")
     (let [stl (StlObject/fromHeightmap name height width hmap)
