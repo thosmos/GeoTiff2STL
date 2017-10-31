@@ -4,9 +4,11 @@
     <output url="file://$MODULE_DIR$/target/classes" />
     <output-test url="file://$MODULE_DIR$/target/classes" />
     <exclude-output />
+    <option name="createStubs" value="true" />
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/resources" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dev-resources" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/test" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
@@ -14,31 +16,12 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Clojure-1.7.0" level="project" />
+    <orderEntry type="library" name="gdal" level="project" />
     <orderEntry type="library" name="Leiningen: clojure-complete:0.2.4" level="project" />
-    <orderEntry type="library" name="Leiningen: com.googlecode.efficient-java-matrix-library/core:0.26" level="project" />
-    <orderEntry type="library" name="Leiningen: com.heightmap/heightmap2stl:0.1.1" level="project" />
-    <orderEntry type="library" name="Leiningen: com.twelvemonkeys.common/common-image:3.3.1" level="project" />
-    <orderEntry type="library" name="Leiningen: com.twelvemonkeys.common/common-io:3.3.1" level="project" />
-    <orderEntry type="library" name="Leiningen: com.twelvemonkeys.common/common-lang:3.3.1" level="project" />
-    <orderEntry type="library" name="Leiningen: com.twelvemonkeys.imageio/imageio-core:3.3.1" level="project" />
-    <orderEntry type="library" name="Leiningen: com.twelvemonkeys.imageio/imageio-metadata:3.3.1" level="project" />
-    <orderEntry type="library" name="Leiningen: com.twelvemonkeys.imageio/imageio-tiff:3.3.1" level="project" />
-    <orderEntry type="library" name="Leiningen: com.vividsolutions/jts:1.13" level="project" />
-    <orderEntry type="library" name="Leiningen: commons-pool:1.5.4" level="project" />
-    <orderEntry type="library" name="Leiningen: javax.media/jai_core:1.1.3" level="project" />
-    <orderEntry type="library" name="Leiningen: jgridshift:1.0" level="project" />
-    <orderEntry type="library" name="Leiningen: net.java.dev.jsr-275/jsr-275:1.0-beta-2" level="project" />
-    <orderEntry type="library" name="Leiningen: net.sf.geographiclib/GeographicLib-Java:1.44" level="project" />
-    <orderEntry type="library" name="Leiningen: org.clojure/clojure:1.7.0" level="project" />
+    <orderEntry type="library" name="Leiningen: org.apache.commons/commons-lang3:3.6" level="project" />
+    <orderEntry type="library" name="Leiningen: org.clojure/clojure:1.8.0" level="project" />
     <orderEntry type="library" name="Leiningen: org.clojure/tools.cli:0.3.5" level="project" />
     <orderEntry type="library" name="Leiningen: org.clojure/tools.nrepl:0.2.12" level="project" />
-    <orderEntry type="library" name="Leiningen: org.geotools/gt-api:14.3" level="project" />
-    <orderEntry type="library" name="Leiningen: org.geotools/gt-data:14.3" level="project" />
-    <orderEntry type="library" name="Leiningen: org.geotools/gt-main:14.3" level="project" />
-    <orderEntry type="library" name="Leiningen: org.geotools/gt-metadata:14.3" level="project" />
-    <orderEntry type="library" name="Leiningen: org.geotools/gt-opengis:14.3" level="project" />
-    <orderEntry type="library" name="Leiningen: org.geotools/gt-referencing:14.3" level="project" />
-    <orderEntry type="library" name="Leiningen: org.geotools/gt-shapefile:14.3" level="project" />
-    <orderEntry type="library" name="Leiningen: org.jdom/jdom:1.1.3" level="project" />
+    <orderEntry type="library" name="Leiningen: org.gdal/gdal:2.2.0" level="project" />
   </component>
 </module>

@@ -1,277 +1,47 @@
 (ns hellogeotiff
   (:gen-class)
-  (:import [org.geotools.data CachingFeatureSource FeatureSource FileDataStore FileDataStoreFinder])
-  (:import [java.io File]
-           [java.awt.image BufferedImage]
-           [java.awt.image Raster]
-           [javax.imageio ImageIO ImageReader]
-           [com.heightmap.stl StlObject ModelObject]
-           )
-  (:require [clojure.pprint :refer [pprint]]))
+  ;(:import [org.geotools.data CachingFeatureSource FeatureSource FileDataStore FileDataStoreFinder])
+  (:import
+    ;[java.io File]
+    ;[java.awt.image BufferedImage]
+    ;[java.awt.image Raster]
+    ;[javax.imageio ImageIO ImageReader]
+    [com.heightmap.stl StlObject ModelObject]
+    [org.gdal.gdalconst gdalconstConstants]
+    [org.gdal.gdal gdal Dataset Driver Band])
+  (:require [clojure.pprint :refer [pprint]]
+            [clojure.tools.cli :as cli]
+            [clojure.java.io :as io]
+            [clojure.string :as string]))
 
-(defn dostuff []
-  (doseq [suffix (ImageIO/getReaderFileSuffixes)]
-    (println "suffix:" suffix))
+(defn reader-init []
 
-  (let [readers (ImageIO/getImageReadersByFormatName "TIFF")]
-    (while (. readers hasNext)
-      (println "reader: " (. readers next)))))
+  (try (gdal/AllRegister)
+       (catch Exception ex (println "Is GDAL installed and working?\n" (.getMessage ex))))
 
-;(defn points-loop [width height hmap]
-;  (loop [y 0 pts []]
-;    (loop [x 0 pts pts]
-;      (let [x1 (+ x 1)
-;            y1 (+ y 1)
-;            xy (aget hmap x y)
-;            x1y (aget hmap x1 y)
-;            xy1 (aget hmap x y1)
-;            x1y1 (aget hmap x1 y1)
-;            pts (cond-> pts
-;                        ;;lower left triangles
-;                        (or (> xy 0.0) (> x1y 0.0) (> xy1 0.0))
-;                        (->
-;                          ;; top
-;                          (conj x y xy, x1 y x1y, x y1 xy1)
-;                          ;; bottom
-;                          (conj x y 0.0, x1 y 0.0, x y1 0.0)
-;                          ;; sides
-;                          (cond->
-;                            ;; left
-;                            (= x 0)
-;                            (conj 0.0 y xy, 0.0 y1 xy1, 0.0 y 0.0
-;                                  0.0 y1 xy1, 0.0 y1 0.0, 0.0 y 0.0)
-;                            ;; near
-;                            (= y 0)
-;                            (conj x 0.0 xy, x 0.0 0.0, x1 0.0 x1y
-;                                  x1 0.0 x1y, x 0.0 0.0, x1 0.0 0.0)))
-;
-;                        ;; upper right triangles
-;                        (or (> x1y 0.0) (> x1y1 0.0) (> xy1 0.0))
-;                        (->
-;                          ;; top
-;                          (conj x1 y x1y, x1 y1 x1y1, x y1 xy1)
-;                          ;; bottom
-;                          (conj x1 y 0.0, x1 y1 0.0, x y1 0.0)
-;                          ;; sides
-;                          (cond->
-;                            ;; right
-;                            (= x (- width 2))
-;                            (conj x1 y x1y, x1 y 0.0, x1 y1 x1y1
-;                                  x1 y1 x1y1, x1 y 0.0, x1 y1 0.0)
-;                            ;; far
-;                            (= y (- height 2))
-;                            (conj x y1 xy1, x1 y1 x1y1, x y1 0.0
-;                                  x y1 0.0, x1 y1 x1y1, x1 y1 0.0))))]
-;        (if (< x (- width 2))
-;          (recur (inc x) pts)
-;          (if (< y (- height 2))
-;            (recur (inc y) pts)
-;            pts))))))
-;
-;(defn points-concat [width height hmap]
-;  (concat
-;    (for [y (range (- height 1))
-;          x (range (- width 1))
-;          :let [x1 (+ x 1)
-;                y1 (+ y 1)
-;                xy (aget hmap x y)
-;                x1y (aget hmap x1 y)
-;                xy1 (aget hmap x y1)
-;                x1y1 (aget hmap x1 y1)
-;                pts (cond-> []
-;
-;                            ;;lower left triangles
-;                            (or (> xy 0.0) (> x1y 0.0) (> xy1 0.0))
-;                            (->
-;                              ;; top
-;                              (conj x y xy, x1 y x1y, x y1 xy1)
-;                              ;; bottom
-;                              (conj x y 0.0, x1 y 0.0, x y1 0.0)
-;                              ;; sides
-;                              (cond->
-;                                ;; left
-;                                (= x 0)
-;                                (conj 0.0 y xy, 0.0 y1 xy1, 0.0 y 0.0
-;                                      0.0 y1 xy1, 0.0 y1 0.0, 0.0 y 0.0)
-;                                ;; near
-;                                (= y 0)
-;                                (conj x 0.0 xy, x 0.0 0.0, x1 0.0 x1y
-;                                      x1 0.0 x1y, x 0.0 0.0, x1 0.0 0.0)))
-;
-;                            ;; upper right triangles
-;                            (or (> x1y 0.0) (> x1y1 0.0) (> xy1 0.0))
-;                            (->
-;                              ;; top
-;                              (conj x1 y x1y, x1 y1 x1y1, x y1 xy1)
-;                              ;; bottom
-;                              (conj x1 y 0.0, x1 y1 0.0, x y1 0.0)
-;                              ;; sides
-;                              (cond->
-;                                ;; right
-;                                (= x (- width 2))
-;                                (conj x1 y x1y, x1 y 0.0, x1 y1 x1y1
-;                                      x1 y1 x1y1, x1 y 0.0, x1 y1 0.0)
-;                                ;; far
-;                                (= y (- height 2))
-;                                (conj x y1 xy1, x1 y1 x1y1, x y1 0.0
-;                                      x y1 0.0, x1 y1 x1y1, x1 y1 0.0))))]]
-;      pts)))
-;
-;(defn points-array [width height hmap]
-;  (concat
-;    (for [y (range (- height 1))
-;         x (range (- width 1))
-;         :let [x1 (+ x 1)
-;               y1 (+ y 1)
-;               xy (aget hmap x y)
-;               x1y (aget hmap x1 y)
-;               xy1 (aget hmap x y1)
-;               x1y1 (aget hmap x1 y1)]]
-;     (persistent!
-;       (cond->
-;         (transient [])
-;
-;         ;;lower left triangles
-;         (or (> xy 0.0) (> x1y 0.0) (> xy1 0.0))
-;         (->
-;           ;; top
-;           (conj! x)
-;           (conj! y)
-;           (conj! xy)
-;           (conj! x1)
-;           (conj! y)
-;           (conj! x1y)
-;           (conj! x)
-;           (conj! y1)
-;           (conj! xy1)
-;
-;           ;; bottom
-;           (conj! x)
-;           (conj! y)
-;           (conj! 0.0)
-;           (conj! x1)
-;           (conj! y)
-;           (conj! 0.0)
-;           (conj! x)
-;           (conj! y1)
-;           (conj! 0.0)
-;
-;           ;; sides
-;           (cond->
-;             ;; left
-;             (= x 0)
-;             (->
-;               (conj! 0.0)
-;               (conj! y)
-;               (conj! xy)
-;               (conj! 0.0)
-;               (conj! y1)
-;               (conj! xy1)
-;               (conj! 0.0)
-;               (conj! y)
-;               (conj! 0.0)
-;               (conj! 0.0)
-;               (conj! y1)
-;               (conj! xy1)
-;               (conj! 0.0)
-;               (conj! y1)
-;               (conj! 0.0)
-;               (conj! 0.0)
-;               (conj! y)
-;               (conj! 0.0))
-;
-;             ;; near
-;             (= y 0)
-;             (->
-;               (conj! x)
-;               (conj! 0.0)
-;               (conj! xy)
-;               (conj! x)
-;               (conj! 0.0)
-;               (conj! 0.0)
-;               (conj! x1)
-;               (conj! 0.0)
-;               (conj! x1y)
-;               (conj! x1)
-;               (conj! 0.0)
-;               (conj! x1y)
-;               (conj! x)
-;               (conj! 0.0)
-;               (conj! 0.0)
-;               (conj! x1)
-;               (conj! 0.0)
-;               (conj! 0.0))))
-;
-;         ;; upper right triangles
-;         (or (> x1y 0.0) (> x1y1 0.0) (> xy1 0.0))
-;         (->
-;           ;; top
-;           (conj! x1)
-;           (conj! y)
-;           (conj! x1y)
-;           (conj! x1)
-;           (conj! y1)
-;           (conj! x1y1)
-;           (conj! x)
-;           (conj! y1)
-;           (conj! xy1)
-;
-;           ;; bottom
-;           (conj! x1)
-;           (conj! y)
-;           (conj! 0.0)
-;           (conj! x1)
-;           (conj! y1)
-;           (conj! 0.0)
-;           (conj! x)
-;           (conj! y1)
-;           (conj! 0.0)
-;
-;           ;; sides
-;           (cond->
-;             ;; right
-;             (= x (- width 2))
-;             (->
-;               (conj! x1)
-;               (conj! y)
-;               (conj! x1y)
-;               (conj! x1)
-;               (conj! y)
-;               (conj! 0.0)
-;               (conj! x1)
-;               (conj! y1)
-;               (conj! x1y1)
-;               (conj! x1)
-;               (conj! y1)
-;               (conj! x1y1)
-;               (conj! x1)
-;               (conj! y)
-;               (conj! 0.0)
-;               (conj! x1)
-;               (conj! y1)
-;               (conj! 0.0))
-;
-;             ;; far
-;             (= y (- height 2))
-;             (->
-;               (conj! x)
-;               (conj! y1)
-;               (conj! xy1)
-;               (conj! x1)
-;               (conj! y1)
-;               (conj! x1y1)
-;               (conj! x)
-;               (conj! y1)
-;               (conj! 0.0)
-;               (conj! x)
-;               (conj! y1)
-;               (conj! 0.0)
-;               (conj! x1)
-;               (conj! y1)
-;               (conj! x1y1)
-;               (conj! x1)
-;               (conj! y1)
-;               (conj! 0.0)))))))))
+  ;(doseq [suffix (ImageIO/getReaderFileSuffixes)]
+  ;  (println "suffix:" suffix))
+  ;
+  ;(let [readers (ImageIO/getImageReadersByFormatName "TIFF")]
+  ;  (while (. readers hasNext)
+  ;    (println "reader: " (. readers next))))
+  )
+
+(defn ^String getDataType [v]
+  (case v
+    0 "Unknown"
+    1 "Byte"
+    2 "UInt16"
+    3 "Int16"
+    4 "UInt32"
+    5 "Int32"
+    6 "Float32"
+    7 "Float64"
+    8 "CInt16"
+    9 "CInt32"
+    10 "CFloat32"
+    11 "CFloat64"
+    12 "CFloat64"))
 
 (defn min-fn
   ([x y]
@@ -283,84 +53,186 @@
   ([x y & more]
    (reduce min-fn (min-fn x y) more)))
 
+(def cli-options
+  ;; An option with a required argument
+  [["-m" "--multiplier MULT" "Height Multiplier"
+    :id :multiplier
+    :default 4.0
+    :parse-fn #(Float/parseFloat %)
+    :validate [#(< 0.0 % 20.0) "Must be a number between 0 and 20"]]
+   ;; A non-idempotent option
+   ["-z" "--zlift ZLIFT" "Z Lift/Reduce"
+    :id :z-lift
+    :default 0.0
+    :parse-fn #(Float/parseFloat %)]
+   ;; A boolean option defaulting to nil
+   ["-h" "--help"]])
+
+(defn usage [options-summary]
+  (->> ["Welcome to GeoTIFF2STL. May it be of use to you."
+        ""
+        "Usage: java -jar GeoTIFF2STL.jar [options] path-to-geotiff-file"
+        ""
+        "Options:"
+        options-summary]
+    (string/join \newline)))
+
+(defn error-msg [errors]
+  (str "The following errors occurred while parsing your command:\n\n"
+    (string/join \newline errors)))
+
+(defn validate-args
+  "Validate command line arguments. Either return a map indicating the program
+  should exit (with a error message, and optional ok status), or a map
+  indicating the action the program should take and the options provided."
+  [args]
+  (let [{:keys [options arguments errors summary]} (cli/parse-opts args cli-options)]
+    (cond
+      (:help options) ; help => exit OK with usage summary
+      {:exit-message (usage summary) :ok? true}
+      errors ; errors => exit with description of errors
+      {:exit-message (error-msg errors)}
+      ;; custom validation on arguments
+      (or (< (count arguments) 1)
+        (not (.exists (io/as-file (first arguments)))))
+      {:exit-message (str (usage summary) \newline \newline "Where's the GeoTIFF file?")}
+      (and (= 1 (count arguments))
+        (.exists (io/as-file (first arguments))))
+      {:filename (first arguments) :options options}
+      :else ; failed custom validation => exit with usage summary
+      {:exit-message (usage summary)})))
+
+(defn exit [status msg]
+  (println msg)
+  (println "EXITING" status)
+  ;(System/exit status)
+  )
+
+
 (defn -main
   "The Main."
   [& args]
-  (println "GeoTIFF2STL!" args)
-  ;(dostuff)
-  (let [^String filename (first args)
-        multiplier (Float/parseFloat (get (vec args) 1))
-        z-lift (Float/parseFloat (get (vec args) 2))
-        ^File file (File. filename)
-        name (.getName file) ;
-        ^BufferedImage image (try
-                               (ImageIO/read file)
-                               (catch Exception ex (print ex)))
-        width (.getWidth image)
-        _ (println "width" width)
-        height (.getHeight image)
-        _ (println "height" height)
-        ^Raster raster (.getData image)
-        hmap (make-array Float/TYPE width height)
-        ;samples (for [w (range width) h (range height)]
-        ;          (.getSample raster w h 0))
-        ;points (make-array Float/TYPE (* (+ (* height width) width height) 6 3 2))
-        ;stl (StlObject. name 0)
-        ]
 
-    (println "Calculating samples and min/max (z-lift: " z-lift ", mult: " multiplier ")")
-    (let [keys (vec (for [w (range width) h (range height)]
-                  [w h]))
-          samples (vec (for [[w h] keys]
-                     (let [s (.getSample raster w h 0)]
-                       (if (> s 0)
-                         (+ z-lift (* multiplier (/ s 100.0)))
-                         0))))
-          min (reduce min-fn samples)
-          max (reduce max samples)]
-      (println "min: " min "max: " max)
-      (when (> min 10)
-        (println "min is over 10, consider a lower z-lift value"))
-      (println "Converting to java array")
-      (doseq [i (range (count samples))]
-        (let [[w h] (get keys i)
-              sample (get samples i)]
-          (aset-float hmap (- (- width 1) w) h
-                     sample))))
+  (reader-init)
 
-    ;(doseq [w (range width) h (range height)]
-    ;  (let [s (.getSample raster w h 0)]
-    ;    (aset-float minmax 0 (min-fn (aget minmax 0) s))
-    ;    (aset-float minmax 1 (max (aget minmax 1) s))))
+  (let [{:keys [filename options exit-message ok?]} (validate-args args)]
+    (if exit-message
+      (exit (if ok? 0 1) exit-message)
+      (let [name (.getName (io/as-file filename))
+            ^float multiplier (:multiplier options)
+            ^float z-lift (:z-lift options)
+            ^Dataset ds (gdal/Open filename gdalconstConstants/GA_ReadOnly)
+            ^Driver drv (.GetDriver ds)
+            x (.getRasterXSize ds)
+            y (.getRasterYSize ds)
+            hmap (make-array Float/TYPE x y)
+            ^Band band (.GetRasterBand ds 1)
+            minMax (double-array 2)
+            _ (.ComputeRasterMinMax band minMax)
+            sum-start {:min Float/MAX_VALUE :max Float/MIN_VALUE}
+            sum-fn (fn [sum next]
+                     {:min (min-fn (:min sum) next) :max (max (:max sum) next)})]
 
-    ;(println "Loading elevation data")
-    ;(doseq [w (range width) h (range height)]
-    ;  (let [sample (.getSample raster w h 0)]
-    ;    (aset-float hmap (- (- width 1) w) h
-    ;                (if (> sample 0)
-    ;                  (+ 10 (* 4 (/ sample 90)))
-    ;                  0))))
+        (println "GDAL Ver. " (gdal/VersionInfo))
+        (println (str "Driver: " (.getShortName drv) "/" (.getLongName drv)))
+        (println (str "Width: " (.getRasterXSize ds) ", Height:" (.getRasterYSize ds)
+                   "\nMin: " (aget minMax 0) ", Max: " (aget minMax 1)))
+        (println (str "DataType: " (getDataType (.getDataType band))))
 
+        (println "Reading raster.")
+        (doseq [^int i (range x)]
+          (let [^floats arr (float-array y)]
+            (.ReadRaster band i 0 1 y arr)
+            (aset hmap i arr)))
+        (println "Done reading raster.  \nParsing data.")
+        (let [sum (reduce sum-fn sum-start
+                    (for [i (range x)
+                          j (range y)]
+                      (let [v (float (+ z-lift (* (aget hmap i j) multiplier 0.01)))]
+                        (when (= (mod i 10) j 0)
+                          (print ".") (flush))
+                        (aset hmap i j v)
+                        v)))]
+          (println "Done parsing: Modified Min: " (:min sum) ", Max: " (:max sum)))
+        (println "Saving STL")
+        (let [stl (StlObject/fromHeightmap name y x hmap)
+              name (if (.contains name ".")
+                     (.substring name 0 (.lastIndexOf name "."))
+                     name)]
+          (set! (. stl -path) (str name ".stl"))
+          (.save stl StlObject/FILE_BINARY))
+        )))
 
+  ;(let [{:keys [action options exit-message ok?]} (validate-args args)]
+  ;  (if exit-message
+  ;    (exit (if ok? 0 1) exit-message)
+  ;    (let [^String filename action
+  ;          ;_ (println "OPTIONS " options)
+  ;          multiplier (:multiplier options)
+  ;          z-lift (:z-lift options)
+  ;          ^File file (File. filename)
+  ;          name (.getName file) ;
+  ;          ^BufferedImage image (try
+  ;                                 (ImageIO/read file)
+  ;                                 (catch Exception ex (exit 1 ex)))
+  ;          width (.getWidth image)
+  ;          _ (println "width" width)
+  ;          height (.getHeight image)
+  ;          _ (println "height" height)
+  ;          ^Raster raster (.getData image)
+  ;          hmap (make-array Float/TYPE width height)
+  ;          summary {:min Float/MAX_VALUE :max Float/MIN_VALUE}
+  ;          sum-fn (fn [sum next]
+  ;                   (let [[x y] next
+  ;                         v (.getSample raster x y 0)
+  ;                         v (+ z-lift (* multiplier (/ v 100.0)))
+  ;                         min (min-fn (:min sum) v)
+  ;                         max (max (:max sum) v)
+  ;                         ]
+  ;                     ;(aset-float hmap (- (- width 1) x) y v)
+  ;                     ;(when (= (mod x 10) 0)
+  ;                     ;  (println x y v))
+  ;                     {:min min :max max}))]
+  ;
+  ;      (println "Calculating samples and min/max (z-lift: " z-lift ", mult: " multiplier ")")
+  ;
+  ;      (println "RESULTS"
+  ;        (reduce sum-fn summary (for [w (range width) h (range height)] [w h])))
+  ;
+  ;
+  ;      ;
+  ;      ;(let [keys (vec (for [w (range width) h (range height)]
+  ;      ;                  [w h]))
+  ;      ;      samples (vec (for [[w h] keys]
+  ;      ;                     (let [s (.getSample raster w h 0)]
+  ;      ;                       (if (> s 0)
+  ;      ;                         (+ z-lift (* multiplier (/ s 100.0)))
+  ;      ;                         0))))
+  ;      ;      ;_ (println "samples " samples)
+  ;      ;      min (reduce min-fn samples)
+  ;      ;      max (reduce max samples)]
+  ;      ;  (println "min: " min "max: " max)
+  ;      ;  (when (> min 10)
+  ;      ;    (println "min is over 10, consider a lower z-lift value"))
+  ;      ;  (println "Converting to java array")
+  ;      ;  (doseq [i (range (count samples))]
+  ;      ;    (let [[w h] (get keys i)
+  ;      ;          sample (get samples i)]
+  ;      ;      (aset-float hmap (- (- width 1) w) h
+  ;      ;        sample))))
+  ;      ;
+  ;      ;(println "Saving STL")
+  ;      ;(let [stl (StlObject/fromHeightmap name height width hmap)
+  ;      ;      name (if (.contains name ".")
+  ;      ;             (.substring name 0 (.lastIndexOf name "."))
+  ;      ;             name)]
+  ;      ;  (set! (. stl -path) (str name ".stl"))
+  ;      ;  (.save stl StlObject/FILE_BINARY))
+  ;
+  ;      ;(println "count loop-recur" (time (count (points-loop width height hmap))))
+  ;      ;(println "count for-concat" (time (count (points-concat width height hmap))))
+  ;      ;(println "count for-array" (time (count (points-array width height hmap))))
+  ;
+  ;      )))
 
-    ;(println "Calculating min/max")
-    ;(let [vecs (map #(into [] %) (into [] hmap))
-    ;      min-max (reduce (fn [in val] {:min (min-fn (:min in) (apply min-fn val))
-    ;                                    :max (max (:max in) (apply max val))})
-    ;                      {:min Float/MAX_VALUE :max Float/MIN_VALUE} vecs)
-    ;      ]
-    ;  (println min-max))
-
-    (println "Saving STL")
-    (let [stl (StlObject/fromHeightmap name height width hmap)
-          name (if (.contains name ".")
-                 (.substring name 0 (.lastIndexOf name "."))
-                 name)]
-      (set! (. stl -path) (str name ".stl"))
-      (.save stl StlObject/FILE_BINARY))
-
-    ;(println "count loop-recur" (time (count (points-loop width height hmap))))
-    ;(println "count for-concat" (time (count (points-concat width height hmap))))
-    ;(println "count for-array" (time (count (points-array width height hmap))))
-
-    ))
+  )
