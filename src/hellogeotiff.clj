@@ -1,7 +1,7 @@
 (ns hellogeotiff
   (:gen-class)
   (:import
-    [com.heightmap.stl StlObject ModelObject]
+    [com.heightmap.stl StlObject]
     [org.gdal.gdalconst gdalconstConstants]
     [org.gdal.gdal gdal Dataset Driver Band])
   (:require [clojure.pprint :refer [pprint]]
@@ -9,9 +9,14 @@
             [clojure.java.io :as io]
             [clojure.string :as string]))
 
+(defn exit [status msg]
+  (println msg)
+  (println "EXITING" status)
+  (System/exit status))
+
 (defn reader-init []
   (try (gdal/AllRegister)
-       (catch Exception ex (println "Is GDAL installed and working?\n" (.getMessage ex)))))
+       (catch Exception ex (exit 1 (str "Is GDAL installed and working?\n" (.getMessage ex))))))
 
 (defn ^String getDataType [v]
   (case v
@@ -28,8 +33,6 @@
     10 "CFloat32"
     11 "CFloat64"
     12 "CFloat64"))
-
-
 
 (def cli-options
   ;; An option with a required argument
@@ -80,12 +83,6 @@
       :else ; failed custom validation => exit with usage summary
       {:exit-message (usage summary)})))
 
-(defn exit [status msg]
-  (println msg)
-  (println "EXITING" status)
-  ;(System/exit status)
-  )
-
 (defn min-fn
   ([x y]
    (if (> y 0)
@@ -116,32 +113,39 @@
             ^Band band (.GetRasterBand ds 1)
             ^doubles minMax (double-array 2)
             _ (.ComputeRasterMinMax band minMax)
+            r-min (aget minMax 0)
+            r-max (aget minMax 1)
             sum-start {:min Float/MAX_VALUE :max Float/MIN_VALUE}
             sum-fn (fn [sum next]
-                     {:min (min-fn (:min sum) next) :max (max (:max sum) next)})]
+                     {:min (min-fn (:min sum) next) :max (max (:max sum) next)})
+            no-data-arr (into-array (make-array Double/TYPE 1)) ;; a hack to make a [Ljava.lang.Double type
+            _ (.GetNoDataValue band no-data-arr) ;; requires a [Ljava.lang.Double not a [D
+            no-data-val (aget no-data-arr 0)]
 
         (println "GDAL Ver. " (gdal/VersionInfo))
         (println (str "Driver: " (.getShortName drv) "/" (.getLongName drv)))
-        (println (str "Width: " (.getRasterXSize ds) ", Height:" (.getRasterYSize ds)
-                   "\nMin: " (aget minMax 0) ", Max: " (aget minMax 1)))
-        (println (str "DataType: " (getDataType (.getDataType band))))
+        (println (str "Width: " x ", Height:" y "\nMin: " r-min ", Max: " r-max))
+        (println (str "DataType: " (getDataType (.getDataType band)) "\n"
+                   "NoData Value: " no-data-val))
 
         (println "Reading raster.")
         (doseq [^int i (range x)]
-          (let [^floats arr (float-array y)]
+          (let [^floats arr (float-array y)
+                xi (- x 1 i)] ; flip the order of columns (workaround for StlObject)
             (.ReadRaster band i 0 1 y arr)
-            (aset hmap i arr)))
+            (aset hmap xi arr)))
         (println "Done reading raster.  \nParsing data.")
         (let [sum (reduce sum-fn sum-start
                     (for [i (range x)
                           j (range y)]
                       (let [v (float (+ z-lift (* (aget hmap i j) multiplier 0.01)))
-                            v' (float (max 0.0 v))]
+                            v' (if (> v r-max) 0.0 v) ; fix for nodata values that are Float/MAX_VALUE
+                            v' (float (max 0.0 v'))]
                         ;; use the zeroed value for the build
                         (aset hmap i j v')
                         (when (= (mod i 10) j 0)
                           (print ".") (flush))
-                        v)))]
+                        v')))]
           (println "\nDone parsing: Modified Min: " (:min sum) ", Max: " (:max sum)))
         (println "Saving STL")
         (let [stl (StlObject/fromHeightmap name y x hmap)

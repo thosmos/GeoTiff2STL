@@ -1,0 +1,244 @@
+//package com.heightmap;
+//
+//import com.heightmap.stl.ModelObject;
+//import com.heightmap.stl.StlObject;
+//import java.awt.Color;
+//import java.awt.image.BufferedImage;
+//import java.io.File;
+//import java.io.PrintStream;
+//import java.text.NumberFormat;
+//import javax.imageio.ImageIO;
+//
+//public class Main
+//{
+//    public static void main(String[] args)
+//    {
+//        float base_height = 5.0F;
+//        float model_height = 20.0F;
+//        if (args.length != 3) {
+//            System.out.println("Usage: filename model_height base_height");
+//        } else {
+//            try
+//            {
+//                File file = new File(args[0]);
+//                base_height = new Float(args[2]).floatValue();
+//                model_height = new Float(args[1]).floatValue();
+//
+//                System.out.println("File: " + file.getName());
+//                System.out.println("Model height: " + model_height);
+//                System.out.println("Base height: " + base_height);
+//
+//                int width = 0;
+//                int height = 0;
+//
+//                float min_height = Float.MAX_VALUE;
+//
+//                System.out.println("-----------------------");
+//                System.out.println("Processing - " + file.getName());
+//
+//                Color co = null;
+//                float[] hsv = new float[3];
+//
+//                BufferedImage img = ImageIO.read(file);
+//                width = img.getWidth();
+//                height = img.getHeight();
+//
+//                float[][] heightmap = new float[width][height];
+//                for (int i = 0; i < width; i++) {
+//                    for (int j = 0; j < height; j++)
+//                    {
+//                        co = new Color(img.getRGB(i, j));
+//                        Color.RGBtoHSB(co.getRed(), co.getGreen(), co.getBlue(), hsv);
+//
+//                        heightmap[(width - i - 1)][j] = (hsv[2] * model_height);
+//                        if (heightmap[(width - i - 1)][j] < min_height) {
+//                            min_height = heightmap[(width - i - 1)][j];
+//                        }
+//                    }
+//                }
+//                String name = file.getName();
+//                if (name.contains(".")) {
+//                    name = file.getName().substring(0, file.getName().lastIndexOf("."));
+//                }
+//                StlObject stl = new StlObject(name, 0L);
+//                float[] points = new float[((height - 1) * (width - 1) * 2 + (width - 1) * 4 + (height - 1) * 4 + 2) * 3 * 3];
+//                int c = 0;
+//                for (int i = 0; i < height - 1; i++) {
+//                    for (int j = 0; j < width - 1; j++)
+//                    {
+//                        points[(c++)] = j;
+//                        points[(c++)] = i;
+//                        points[(c++)] = heightmap[j][i];
+//
+//                        points[(c++)] = (j + 1);
+//                        points[(c++)] = i;
+//                        points[(c++)] = heightmap[(j + 1)][i];
+//
+//                        points[(c++)] = j;
+//                        points[(c++)] = (i + 1);
+//                        points[(c++)] = heightmap[j][(i + 1)];
+//
+//                        points[(c++)] = (j + 1);
+//                        points[(c++)] = i;
+//                        points[(c++)] = heightmap[(j + 1)][i];
+//
+//                        points[(c++)] = (j + 1);
+//                        points[(c++)] = (i + 1);
+//                        points[(c++)] = heightmap[(j + 1)][(i + 1)];
+//
+//                        points[(c++)] = j;
+//                        points[(c++)] = (i + 1);
+//                        points[(c++)] = heightmap[j][(i + 1)];
+//                    }
+//                }
+//                for (int i = 0; i < width - 1; i++)
+//                {
+//                    points[(c++)] = i;
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = i;
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = heightmap[i][0];
+//
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = heightmap[(i + 1)][0];
+//
+//                    points[(c++)] = i;
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = heightmap[i][0];
+//
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = i;
+//                    points[(c++)] = (height - 1);
+//                    points[(c++)] = heightmap[i][(height - 1)];
+//
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = (height - 1);
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = i;
+//                    points[(c++)] = (height - 1);
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = (height - 1);
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = i;
+//                    points[(c++)] = (height - 1);
+//                    points[(c++)] = heightmap[i][(height - 1)];
+//
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = (height - 1);
+//                    points[(c++)] = heightmap[(i + 1)][(height - 1)];
+//                }
+//                for (int i = 0; i < height - 1; i++)
+//                {
+//                    points[(c++)] = (width - 1);
+//                    points[(c++)] = i;
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = (width - 1);
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = (width - 1);
+//                    points[(c++)] = i;
+//                    points[(c++)] = heightmap[(width - 1)][i];
+//
+//                    points[(c++)] = (width - 1);
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = heightmap[(width - 1)][(i + 1)];
+//
+//                    points[(c++)] = (width - 1);
+//                    points[(c++)] = i;
+//                    points[(c++)] = heightmap[(width - 1)][(i + 1)];
+//
+//                    points[(c++)] = (width - 1);
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = i;
+//                    points[(c++)] = heightmap[0][i];
+//
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = i;
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = (min_height - base_height);
+//
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = i;
+//                    points[(c++)] = heightmap[0][(i + 1)];
+//
+//                    points[(c++)] = 0.0F;
+//                    points[(c++)] = (i + 1);
+//                    points[(c++)] = heightmap[0][(i + 1)];
+//                }
+//                points[(c++)] = 0.0F;
+//                points[(c++)] = (height - 1);
+//                points[(c++)] = (min_height - base_height);
+//
+//                points[(c++)] = (width - 1);
+//                points[(c++)] = 0.0F;
+//                points[(c++)] = (min_height - base_height);
+//
+//                points[(c++)] = 0.0F;
+//                points[(c++)] = 0.0F;
+//                points[(c++)] = (min_height - base_height);
+//
+//                points[(c++)] = 0.0F;
+//                points[(c++)] = (height - 1);
+//                points[(c++)] = (min_height - base_height);
+//
+//                points[(c++)] = (width - 1);
+//                points[(c++)] = (height - 1);
+//                points[(c++)] = (min_height - base_height);
+//
+//                points[(c++)] = (width - 1);
+//                points[(c++)] = 0.0F;
+//                points[(c++)] = (min_height - base_height);
+//
+//                stl.normal = null;
+//                stl.points = points;
+//
+//                stl.path = (name + ".stl");
+//
+//                stl.rotate(ModelObject.Z_AXIS, 180.0D);
+//                System.out.println("Facecount: " + NumberFormat.getIntegerInstance().format(points.length / 9));
+//
+//                int filesize = points.length / 9 * 4 * 3 * 4 / 1024 / 1024;
+//                if (filesize > 1) {
+//                    System.out.println("Estimated file size: " + filesize + " MB");
+//                } else {
+//                    System.out.println("Estimated file size: < 1 MB");
+//                }
+//                System.out.println("-----------------------");
+//                System.out.println("Saving to " + new File(new StringBuilder().append(name).append(".stl").toString()).getAbsolutePath());
+//                stl.save(StlObject.FILE_BINARY);
+//                System.out.println("-----------------------");
+//                System.out.println("Done saving");
+//            }
+//            catch (Exception e)
+//            {
+//                e.printStackTrace();
+//            }
+//        }
+//    }
+//}
