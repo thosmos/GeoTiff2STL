@@ -30,7 +30,7 @@
     <orderEntry type="library" name="Leiningen: jgridshift:1.0" level="project" />
     <orderEntry type="library" name="Leiningen: net.java.dev.jsr-275/jsr-275:1.0-beta-2" level="project" />
     <orderEntry type="library" name="Leiningen: net.sf.geographiclib/GeographicLib-Java:1.44" level="project" />
-    <orderEntry type="library" name="Leiningen: org.clojure/clojure:1.7.0" level="project" />
+    <orderEntry type="library" name="Leiningen: org.clojure/clojure:1.8.0" level="project" />
     <orderEntry type="library" name="Leiningen: org.clojure/tools.cli:0.3.5" level="project" />
     <orderEntry type="library" name="Leiningen: org.clojure/tools.nrepl:0.2.12" level="project" />
     <orderEntry type="library" name="Leiningen: org.geotools/gt-api:14.3" level="project" />

@@ -3,8 +3,10 @@
   (:import [java.io File]
            [java.awt.image BufferedImage]
            [java.awt.image Raster]
-           [javax.imageio ImageIO]
-           [com.heightmap.stl StlObject])
+           [javax.imageio ImageIO ImageReadParam]
+           [com.twelvemonkeys.imageio.plugins.tiff TIFFImageReader TIFFImageReaderSpi]
+           [com.heightmap.stl StlObject]
+           [javax.imageio.stream FileImageInputStream])
   (:require [clojure.pprint :refer [pprint]]))
 
 (defn dostuff []
@@ -35,6 +37,13 @@
         z-lift (Float/parseFloat (get (vec args) 2))
         ^File file (File. filename)
         name (.getName file) ;
+        ;^FileImageInputStream stream (FileImageInputStream. file)
+        ;^TIFFImageReaderSpi TIFFspi (TIFFImageReaderSpi.)
+        ;^TIFFImageReader reader (.createReaderInstance TIFFspi ".tif")
+        ;_ (.setInput reader stream)
+        ;^ImageReadParam param (.getDefaultReadParam reader)
+        ;^Raster raster (.readRaster reader 0 param)
+
         ^BufferedImage image (try
                                (ImageIO/read file)
                                (catch Exception ex (print ex)))
@@ -49,12 +58,12 @@
     (let [keys (vec (for [w (range width) h (range height)]
                       [w h]))
           samples (vec (for [[w h] keys]
-                         (let [s (.getSample raster w h 0)
-                               s2 (.getRGB image w h)
+                         (let [s (.getSampleFloat raster w h 0)
+                               ;s2 (.getRGB image w h)
                                s' (if (> s 0)
                                     (+ z-lift (* multiplier (/ s 100.0)))
                                     0)]
-                           (println s2 s s')
+                           (println w h s s')
                            s')))
           min (reduce min-fn samples)
           max (reduce max samples)]
