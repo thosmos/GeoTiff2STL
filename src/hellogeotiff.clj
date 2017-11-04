@@ -3,7 +3,8 @@
   (:import
     [com.heightmap.stl StlObject]
     [org.gdal.gdalconst gdalconstConstants]
-    [org.gdal.gdal gdal Dataset Driver Band])
+    [org.gdal.gdal gdal Dataset Driver Band]
+    [java.io File])
   (:require [clojure.pprint :refer [pprint]]
             [clojure.tools.cli :as cli]
             [clojure.java.io :as io]
@@ -12,7 +13,8 @@
 (defn exit [status msg]
   (println msg)
   (println "EXITING" status)
-  (System/exit status))
+  ;(System/exit status)
+  )
 
 (defn reader-init []
   (try (gdal/AllRegister)
@@ -46,6 +48,8 @@
     :id :z-lift
     :default 0.0
     :parse-fn #(Float/parseFloat %)]
+   ["-s" "--slice" "Slice into multiple sections"
+    :id :slice]
    ;; A boolean option defaulting to nil
    ["-h" "--help"]])
 
@@ -68,6 +72,7 @@
   indicating the action the program should take and the options provided."
   [args]
   (let [{:keys [options arguments errors summary]} (cli/parse-opts args cli-options)]
+    (println "Options: " options)
     (cond
       (:help options) ; help => exit OK with usage summary
       {:exit-message (usage summary) :ok? true}
@@ -76,7 +81,7 @@
       ;; custom validation on arguments
       (or (< (count arguments) 1)
         (not (.exists (io/as-file (first arguments)))))
-      {:exit-message (str (usage summary) \newline \newline "Where's the GeoTIFF file?")}
+      {:exit-message (str (usage summary) \newline \newline "Where's the GeoTIFF file?" \newline options)}
       (and (= 1 (count arguments))
         (.exists (io/as-file (first arguments))))
       {:filename (first arguments) :options options}
@@ -93,23 +98,47 @@
   ([x y & more]
    (reduce min-fn (min-fn x y) more)))
 
+(defn get-slice-size [pixels slice slice-count]
+  (let [val (int (/ pixels slice-count))
+        last-val (int (- pixels (* val (- slice-count 1))))]
+    (if (< slice (- slice-count 1))
+      val
+      last-val)))
+
+(defn get-slice-offset [pixels slice slice-count]
+  (* (int (/ pixels slice-count)) slice))
+
+(defn section-it [pixels sections]
+  (println "section-it" pixels sections)
+  (let [val (int (/ pixels sections))
+        last-val (int (- pixels (* val (- sections 1))))]
+    (vec (for [i (range sections)]
+       (if (= i (- sections 1))
+         last-val
+         val)))))
+
 (defn -main
   "The Main."
   [& args]
+
+  (println "GeoTIFF2STL!")
 
   (reader-init)
 
   (let [{:keys [filename options exit-message ok?]} (validate-args args)]
     (if exit-message
       (exit (if ok? 0 1) exit-message)
-      (let [^String name (.getName (io/as-file filename))
+      (let [^File file (io/file filename)
+            ^String name (.getName file)
+            ^String path (.getParent file)
             ^float multiplier (:multiplier options)
             ^float z-lift (:z-lift options)
+            ^Boolean slice (:slice options)
+            slices (if slice 2 1)
             ^Dataset ds (gdal/Open filename gdalconstConstants/GA_ReadOnly)
             ^Driver drv (.GetDriver ds)
-            x (.getRasterXSize ds)
-            y (.getRasterYSize ds)
-            hmap (make-array Float/TYPE x y)
+            rx (.getRasterXSize ds)
+            ry (.getRasterYSize ds)
             ^Band band (.GetRasterBand ds 1)
             ^doubles minMax (double-array 2)
             _ (.ComputeRasterMinMax band minMax)
@@ -124,33 +153,47 @@
 
         (println "GDAL Ver. " (gdal/VersionInfo))
         (println (str "Driver: " (.getShortName drv) "/" (.getLongName drv)))
-        (println (str "Width: " x ", Height:" y "\nMin: " r-min ", Max: " r-max))
+        (println (str "Width: " rx ", Height:" ry "\nMin: " r-min ", Max: " r-max))
         (println (str "DataType: " (getDataType (.getDataType band)) "\n"
                    "NoData Value: " no-data-val))
+        (println "Slice?" slice)
 
-        (println "Reading raster.")
-        (doseq [^int i (range x)]
-          (let [^floats arr (float-array y)
-                xi (- x 1 i)] ; flip the order of columns (workaround for StlObject)
-            (.ReadRaster band i 0 1 y arr)
-            (aset hmap xi arr)))
-        (println "Done reading raster.  \nParsing data.")
-        (let [sum (reduce sum-fn sum-start
-                    (for [i (range x)
-                          j (range y)]
-                      (let [v (float (+ z-lift (* (aget hmap i j) multiplier 0.01)))
-                            v' (if (> v r-max) 0.0 v) ; fix for nodata values that are Float/MAX_VALUE
-                            v' (float (max 0.0 v'))]
-                        ;; use the zeroed value for the build
-                        (aset hmap i j v')
-                        (when (= (mod i 10) j 0)
-                          (print ".") (flush))
-                        v')))]
-          (println "\nDone parsing: Modified Min: " (:min sum) ", Max: " (:max sum)))
-        (println "Saving STL")
-        (let [stl (StlObject/fromHeightmap name y x hmap)
-              name (if (.contains name ".")
-                     (.substring name 0 (.lastIndexOf name "."))
-                     name)]
-          (set! (. stl -path) (str name ".stl"))
-          (.save stl StlObject/FILE_BINARY))))))
+
+        (for [xs (range slices)
+              ys (range slices)]
+          (let [x (get-slice-size rx xs slices)
+                xi (get-slice-offset rx xs slices)
+                ;_ (println "x: " x ", xi: " xi)
+                y (get-slice-size ry ys slices)
+                yi (get-slice-offset ry ys slices)
+                ;_ (println "y: " y ", yi: " yi)
+                hmap (make-array Float/TYPE x y)]
+            (println "Reading raster slice [" xs "," ys "], width: " x ", height:" y)
+            (doseq [^int i (range x)]
+              (let [^floats arr (float-array y)
+                    xii (- x 1 i)] ; flip the order of columns (workaround for StlObject)
+                (.ReadRaster band (+ i xi) yi 1 y arr)
+                (aset hmap xii arr)))
+            (print "Parsing slice ")
+            (let [sum (reduce sum-fn sum-start
+                        (for [i (range x)
+                              j (range y)]
+                          (let [v (float (+ z-lift (* (aget hmap i j) multiplier 0.01)))
+                                v' (if (> v r-max) 0.0 v) ; fix for nodata values that are Float/MAX_VALUE
+                                v' (float (max 0.0 v'))]
+                            ;; use the zeroed value for the build
+                            (aset hmap i j v')
+                            (when (= (mod i 10) j 0)
+                              (print ".") (flush))
+                            v')))]
+              (println "\nMin: " (:min sum) ", Max: " (:max sum)))
+            (print "Saving STL: ")
+            (let [name (if (.contains name ".")
+                         (.substring name 0 (.lastIndexOf name "."))
+                         name)
+                  name (str name "-" xs "-" ys ".stl")
+                  fname (str path File/separator name)
+                  _ (println fname)
+                  stl (StlObject/fromHeightmap name y x hmap)]
+              (set! (. stl -path) fname)
+              (.save stl StlObject/FILE_BINARY))))))))
