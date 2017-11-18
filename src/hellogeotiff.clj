@@ -37,21 +37,24 @@
         z-lift (Float/parseFloat (get (vec args) 2))
         ^File file (File. filename)
         name (.getName file) ;
-        ;^FileImageInputStream stream (FileImageInputStream. file)
-        ;^TIFFImageReaderSpi TIFFspi (TIFFImageReaderSpi.)
-        ;^TIFFImageReader reader (.createReaderInstance TIFFspi ".tif")
-        ;_ (.setInput reader stream)
-        ;^ImageReadParam param (.getDefaultReadParam reader)
-        ;^Raster raster (.readRaster reader 0 param)
 
-        ^BufferedImage image (try
-                               (ImageIO/read file)
-                               (catch Exception ex (print ex)))
-        width (.getWidth image)
-        _ (println "width" width)
-        height (.getHeight image)
-        _ (println "height" height)
-        ^Raster raster (.getData image)
+        ^FileImageInputStream stream (FileImageInputStream. file)
+        ^TIFFImageReaderSpi TIFFspi (TIFFImageReaderSpi.)
+        ^TIFFImageReader reader (.createReaderInstance TIFFspi ".tif")
+        _ (.setInput reader stream)
+        ^ImageReadParam param (.getDefaultReadParam reader)
+        ^Raster raster (.readRaster reader 0 param)
+        width (.getWidth raster)
+        height (.getHeight raster)
+
+        ;^BufferedImage image (try
+        ;                       (ImageIO/read file)
+        ;                       (catch Exception ex (print ex)))
+        ;width (.getWidth image)
+        ;_ (println "width" width)
+        ;height (.getHeight image)
+        ;_ (println "height" height)
+        ;^Raster raster (.getData image)
         hmap (make-array Float/TYPE width height)]
 
     (println "Calculating samples and min/max (z-lift: " z-lift ", mult: " multiplier ")")
@@ -78,13 +81,13 @@
             sample))))
 
 
-    (println "Saving STL")
-    (let [stl (StlObject/fromHeightmap name height width hmap)
-          name (if (.contains name ".")
-                 (.substring name 0 (.lastIndexOf name "."))
-                 name)]
-      (set! (. stl -path) (str name ".stl"))
-      (.save stl StlObject/FILE_BINARY))
+    ;(println "Saving STL")
+    ;(let [stl (StlObject/fromHeightmap name height width hmap)
+    ;      name (if (.contains name ".")
+    ;             (.substring name 0 (.lastIndexOf name "."))
+    ;             name)]
+    ;  (set! (. stl -path) (str name ".stl"))
+    ;  (.save stl StlObject/FILE_BINARY))
 
 
     ))
