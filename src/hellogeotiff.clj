@@ -1,21 +1,27 @@
 (ns hellogeotiff
   (:gen-class)
   (:import [java.io File]
-           [java.awt.image BufferedImage]
-           [java.awt.image Raster]
-           [javax.imageio ImageIO ImageReadParam]
-           [com.twelvemonkeys.imageio.plugins.tiff TIFFImageReader TIFFImageReaderSpi]
+    ;[java.awt.image BufferedImage]
+           [java.awt.image Raster RenderedImage]
+    ;[javax.imageio ImageIO ImageReadParam ImageTypeSpecifier]
+    ;[com.twelvemonkeys.imageio.plugins.tiff TIFFImageReader TIFFImageReaderSpi]
            [com.heightmap.stl StlObject]
-           [javax.imageio.stream FileImageInputStream])
+    ;[javax.imageio.stream FileImageInputStream]
+    ;[org.geotools.data FileDataStore FileDataStoreFinder]
+           (org.geotools.gce.geotiff GeoTiffReader)
+           (org.geotools.factory Hints)
+           (org.geotools.coverage.grid GridCoverage2D)
+           (org.opengis.referencing.crs CoordinateReferenceSystem)
+           (org.opengis.geometry Envelope))
   (:require [clojure.pprint :refer [pprint]]))
 
-(defn dostuff []
-  (doseq [suffix (ImageIO/getReaderFileSuffixes)]
-    (println "suffix:" suffix))
-
-  (let [readers (ImageIO/getImageReadersByFormatName "TIFF")]
-    (while (. readers hasNext)
-      (println "reader: " (. readers next)))))
+;(defn dostuff []
+;  (doseq [suffix (ImageIO/getReaderFileSuffixes)]
+;    (println "suffix:" suffix))
+;
+;  (let [readers (ImageIO/getImageReadersByFormatName "TIFF")]
+;    (while (. readers hasNext)
+;      (println "reader: " (. readers next)))))
 
 (defn min-fn
   ([x y]
@@ -38,14 +44,26 @@
         ^File file (File. filename)
         name (.getName file) ;
 
-        ^FileImageInputStream stream (FileImageInputStream. file)
-        ^TIFFImageReaderSpi TIFFspi (TIFFImageReaderSpi.)
-        ^TIFFImageReader reader (.createReaderInstance TIFFspi ".tif")
-        _ (.setInput reader stream)
-        ^ImageReadParam param (.getDefaultReadParam reader)
-        ^Raster raster (.readRaster reader 0 param)
-        width (.getWidth raster)
-        height (.getHeight raster)
+        ;^FileImageInputStream stream (FileImageInputStream. file)
+        ;^TIFFImageReaderSpi TIFFspi (TIFFImageReaderSpi.)
+        ;^TIFFImageReader reader (.createReaderInstance TIFFspi ".tif")
+        ;_ (.setInput reader stream)
+        ;^ImageReadParam param (.getDefaultReadParam reader)
+        ;^ImageTypeSpecifier itype (.getRawImageType reader 0)
+        ;_ (println "itype" (.toString itype))
+        ;^Raster raster (.readRaster reader 0 param)
+        ;width (.getWidth raster)
+        ;height (.getHeight raster)
+
+        reader (GeoTiffReader. file (Hints. Hints/FORCE_LONGITUDE_FIRST_AXIS_ORDER Boolean/TRUE))
+        coverage ^GridCoverage2D (.read reader nil)
+        crs ^CoordinateReferenceSystem (.getCoordinateReferenceSystem2D coverage)
+        env ^Envelope (.getEnvelope coverage)
+        image ^RenderedImage (.getRenderedImage coverage)
+
+        width (.getWidth image)
+        height (.getHeight image)
+        raster ^Raster (.getData image)
 
         ;^BufferedImage image (try
         ;                       (ImageIO/read file)
