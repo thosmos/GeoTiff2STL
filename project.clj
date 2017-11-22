@@ -7,6 +7,6 @@
   :jvm-opts ["-Djava.library.path=.:/usr/local/opt/gdal2/lib"]
   :java-source-paths ["java"]
   :source-paths ["src"]
-  :main hellogeotiff; ^:skip-aot hellogeotiff
+  :main ^:skip-aot hellogeotiff
   :profiles {:uberjar {:aot [hellogeotiff] }})
 
