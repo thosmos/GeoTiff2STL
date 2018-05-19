@@ -12,7 +12,8 @@
            (org.geotools.factory Hints)
            (org.geotools.coverage.grid GridCoverage2D)
            (org.opengis.referencing.crs CoordinateReferenceSystem)
-           (org.opengis.geometry Envelope))
+           (org.opengis.geometry Envelope)
+           (java.awt.geom Point2D Point2D$Float))
   (:require [clojure.pprint :refer [pprint]]))
 
 ;(defn dostuff []
@@ -57,6 +58,10 @@
 
         reader (GeoTiffReader. file (Hints. Hints/FORCE_LONGITUDE_FIRST_AXIS_ORDER Boolean/TRUE))
         coverage ^GridCoverage2D (.read reader nil)
+
+        elev (.evaluate coverage (Point2D$Float. 1.0 1.0) nil)
+        _ (println "ELEV: " (.toString elev))
+
         crs ^CoordinateReferenceSystem (.getCoordinateReferenceSystem2D coverage)
         env ^Envelope (.getEnvelope coverage)
         image ^RenderedImage (.getRenderedImage coverage)
