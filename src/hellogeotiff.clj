@@ -2,8 +2,6 @@
   (:gen-class)
   (:import
     [com.heightmap.stl StlObject]
-    [org.gdal.gdalconst gdalconstConstants]
-    [org.gdal.gdal gdal Dataset Driver Band]
     [java.io File])
   (:require [clojure.pprint :refer [pprint]]
             [clojure.tools.cli :as cli]
@@ -15,10 +13,6 @@
   (println "EXITING" status)
   ;(System/exit status)
   )
-
-(defn reader-init []
-  (try (gdal/AllRegister)
-       (catch Exception ex (exit 1 (str "Is GDAL installed and working?\n" (.getMessage ex))))))
 
 (defn ^String getDataType [v]
   (case v
@@ -123,41 +117,42 @@
 
   (println "GeoTIFF2STL!")
 
-  (reader-init)
-
   (let [{:keys [filename options exit-message ok?]} (validate-args args)]
     (if exit-message
       (exit (if ok? 0 1) exit-message)
-      (let [^File file (io/file filename)
-            ^String name (.getName file)
-            ^String path (.getParent file)
+      (let [^File file        (io/file filename)
+            ^String name      (.getName file)
+            ^String path      (.getParent file)
             ^float multiplier (:multiplier options)
-            ^float z-lift (:z-lift options)
-            ^Boolean slice (:slice options)
-            slices (if slice 2 1)
-            ^Dataset ds (gdal/Open filename gdalconstConstants/GA_ReadOnly)
-            ^Driver drv (.GetDriver ds)
-            rx (.getRasterXSize ds)
-            ry (.getRasterYSize ds)
-            ^Band band (.GetRasterBand ds 1)
-            ^doubles minMax (double-array 2)
-            _ (.ComputeRasterMinMax band minMax)
-            r-min (aget minMax 0)
-            r-max (aget minMax 1)
-            sum-start {:min Float/MAX_VALUE :max Float/MIN_VALUE}
-            sum-fn (fn [sum next]
-                     {:min (min-fn (:min sum) next) :max (max (:max sum) next)})
-            no-data-arr (into-array (make-array Double/TYPE 1)) ;; a hack to make a [Ljava.lang.Double type
-            _ (.GetNoDataValue band no-data-arr) ;; requires a [Ljava.lang.Double not a [D
-            no-data-val (aget no-data-arr 0)]
+            ^float z-lift     (:z-lift options)
+            ^Boolean slice    (:slice options)
+            slices            (if slice 2 1)
 
-        (println "GDAL Ver. " (gdal/VersionInfo))
-        (println (str "Driver: " (.getShortName drv) "/" (.getLongName drv)))
+            ;^Dataset ds       (gdal/Open filename gdalconstConstants/GA_ReadOnly)
+            ;^Driver drv       (.GetDriver ds)
+            ;rx                (.getRasterXSize ds)
+            ;ry                (.getRasterYSize ds)
+            ;^Band band        (.GetRasterBand ds 1)
+            ;^doubles minMax   (double-array 2)
+            ;_                 (.ComputeRasterMinMax band minMax)
+            ;r-min             (aget minMax 0)
+            ;r-max             (aget minMax 1)
+
+            sum-start         {:min Float/MAX_VALUE :max Float/MIN_VALUE}
+            sum-fn            (fn [sum next]
+                                {:min (min-fn (:min sum) next) :max (max (:max sum) next)})
+            ;no-data-arr (into-array (make-array Double/TYPE 1)) ;; a hack to make a [Ljava.lang.Double type
+            ;_ (.GetNoDataValue band no-data-arr) ;; requires a [Ljava.lang.Double not a [D
+            ;no-data-val (aget no-data-arr 0)
+            ]
+
+        ;(println "GDAL Ver. " (gdal/VersionInfo))
+        ;(println (str "Driver: " (.getShortName drv) "/" (.getLongName drv)))
+
         (println (str "Width: " rx ", Height:" ry "\nMin: " r-min ", Max: " r-max))
-        (println (str "DataType: " (getDataType (.getDataType band)) "\n"
-                   "NoData Value: " no-data-val))
+        ;(println (str "DataType: " (getDataType (.getDataType band)) "\n"
+        ;           "NoData Value: " no-data-val))
         (println "Slice?" slice)
-
 
         (for [xs (range slices)
               ys (range slices)]
