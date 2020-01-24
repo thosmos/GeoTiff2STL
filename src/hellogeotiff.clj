@@ -5,18 +5,19 @@
            [java.awt.image Raster RenderedImage]
            (org.geotools.gce.geotiff GeoTiffReader)
            (org.geotools.coverage.grid GridCoverage2D))
-           ;(org.opengis.referencing.crs CoordinateReferenceSystem)
-           ;(org.opengis.geometry Envelope)
-           ;(java.awt.geom Point2D Point2D$Float))
+  ;(org.opengis.referencing.crs CoordinateReferenceSystem)
+  ;(org.opengis.geometry Envelope)
+  ;(java.awt.geom Point2D Point2D$Float))
   (:require [clojure.pprint :refer [pprint]]
-            [clojure.tools.cli :as cli]
+    ;[clojure.tools.cli :as cli]
+            [clojure.tools.cli :as cli :refer [parse-opts]]
             [clojure.java.io :as io]
             [clojure.string :as string]))
 
 (defn exit [status msg]
   (println msg)
   (println "EXITING" status))
-  ;(System/exit status)
+;(System/exit status)
 
 
 (defn ^String getDataType [v]
@@ -35,26 +36,56 @@
     11 "CFloat64"
     12 "CFloat64"))
 
+(defn min-fn
+  ([x y]
+   (if (> y 0)
+     (min x y)
+     (if (> x 0)
+       x
+       Float/MAX_VALUE)))
+  ([x y & more]
+   (reduce min-fn (min-fn x y) more)))
+
+(defn get-slice-size [pixels slice slice-count]
+  (let [val      (int (/ pixels slice-count))
+        last-val (int (- pixels (* val (- slice-count 1))))]
+    (if (< slice (- slice-count 1))
+      val
+      last-val)))
+
+(defn get-slice-offset [pixels slice slice-count]
+  (* (int (/ pixels slice-count)) slice))
+
+(defn section-it [pixels sections]
+  (println "section-it" pixels sections)
+  (let [val      (int (/ pixels sections))
+        last-val (int (- pixels (* val (- sections 1))))]
+    (vec (for [i (range sections)]
+           (if (= i (- sections 1))
+             last-val
+             val)))))
+
 (def cli-options
-  ;; An option with a required argument
   [["-m" "--multiplier MULT" "Height Multiplier"
     :id :multiplier
-    :default 4.0
+    :default 4
     :parse-fn #(Float/parseFloat %)
     :validate [#(< 0.0 % 20.0) "Must be a number between 0 and 20"]]
-   ;; A non-idempotent option
-   ["-z" "--zlift ZLIFT" "Z Lift/Reduce"
-    :id :z-lift
-    :default 0.0
+   ["-l" "--lift LIFT" "Lift/Reduce"
+    :id :lift
+    :default 0
     :parse-fn #(Float/parseFloat %)]
    ;["-s" "--slice" "Slice into multiple sections"
    ; :id :slice]
    ;; A boolean option defaulting to nil
+   ["-s" "--size SIZE" "Cell Size in Height Units"
+    :id :size
+    :default 100
+    :parse-fn #(Float/parseFloat %)]
    ["-h" "--help"]])
 
 (defn usage [options-summary]
-  (->> ["Welcome to GeoTIFF2STL. May it be of use to you."
-        ""
+  (->> [""
         "Usage: java -jar GeoTIFF2STL.jar [options] path-to-geotiff-file"
         ""
         "Options:"
@@ -71,7 +102,7 @@
   indicating the action the program should take and the options provided."
   [args]
   (let [{:keys [options arguments errors summary]} (cli/parse-opts args cli-options)]
-    (println "Options: " options)
+    ;(println "Options: " arguments options)
     (cond
       (:help options) ; help => exit OK with usage summary
       {:exit-message (usage summary) :ok? true}
@@ -80,113 +111,86 @@
       ;; custom validation on arguments
       (or (< (count arguments) 1)
         (not (.exists (io/as-file (first arguments)))))
-      {:exit-message (str (usage summary) \newline \newline "Where's the GeoTIFF file?" \newline options)}
+      {:exit-message (str (usage summary) \newline \newline "Where's the GeoTIFF file?")} ;\newline options)}
       (and (= 1 (count arguments))
         (.exists (io/as-file (first arguments))))
       {:filename (first arguments) :options options}
       :else ; failed custom validation => exit with usage summary
       {:exit-message (usage summary)})))
 
-(defn min-fn
-  ([x y]
-   (if (> y 0)
-     (min x y)
-     (if (> x 0)
-       x
-       Float/MAX_VALUE)))
-  ([x y & more]
-   (reduce min-fn (min-fn x y) more)))
-
-(defn get-slice-size [pixels slice slice-count]
-  (let [val (int (/ pixels slice-count))
-        last-val (int (- pixels (* val (- slice-count 1))))]
-    (if (< slice (- slice-count 1))
-      val
-      last-val)))
-
-(defn get-slice-offset [pixels slice slice-count]
-  (* (int (/ pixels slice-count)) slice))
-
-(defn section-it [pixels sections]
-  (println "section-it" pixels sections)
-  (let [val (int (/ pixels sections))
-        last-val (int (- pixels (* val (- sections 1))))]
-    (vec (for [i (range sections)]
-          (if (= i (- sections 1))
-            last-val
-            val)))))
-
 (defn -main
   "The Main."
   [& args]
-  (println "GeoTIFF2STL!" args)
-  (let [^String filename (first args)
-        multiplier (Float/parseFloat (get (vec args) 1 "4.0"))
-        z-lift (Float/parseFloat (get (vec args) 2 "0.0"))
-        ^File file (File. filename)
-        name (.getName file) ;
-        pixel-size-in-height-units 100.0 ;27.514 DEM albers 27.51444296347608898,-27.51444296347608898
+  (println "\nGeoTIFF2STL!")
+  (let [{:keys [filename options exit-message ok?]} (validate-args args)]
+    (if exit-message
+      (exit (if ok? 0 1) exit-message)
+      (let [multiplier                 (:multiplier options)
+            z-lift                     (:lift options)
+            ^File file                 (File. filename)
+            name                       (.getName file) ;
+            pixel-size-in-height-units (:size options) ; 100.0; 27.514 DEM albers 27.51444296347608898
 
-        name (if (.contains name ".")
-               (.substring name 0 (.lastIndexOf name "."))
-               name)
-        name (str name
-               "-" (int pixel-size-in-height-units) "size"
-               "-" (int multiplier) "mult"
-               "-" (int z-lift) "lift"
-               ".stl")
+            name                       (if (.contains name ".")
+                                         (.substring name 0 (.lastIndexOf name "."))
+                                         name)
+            name                       (str name
+                                         "-" (int pixel-size-in-height-units) "size"
+                                         "-" (int multiplier) "mult"
+                                         "-" (int z-lift) "lift"
+                                         ".stl")
 
-        _ (println "Making" name)
+            _                          (println "Making" name)
 
-        reader (GeoTiffReader. file)
-        coverage ^GridCoverage2D (.read reader nil)
+            reader                     (GeoTiffReader. file)
+            coverage                   ^GridCoverage2D (.read reader nil)
 
-        _ (comment
-            (def filename "../yuba/DEM-yuba-27m-albers.tif")
-            (def file (File. filename))
-            (def multiplier 4.0)
-            (def z-lift 5.0)
-            (def reader (GeoTiffReader. file))
-            (def coverage ^GridCoverage2D (.read reader nil)))
+            _                          (comment
+                                         (def filename "../yuba/DEM-yuba-27m-albers.tif")
+                                         (def file (File. filename))
+                                         (def multiplier 4.0)
+                                         (def z-lift 5.0)
+                                         (def reader (GeoTiffReader. file))
+                                         (def coverage ^GridCoverage2D (.read reader nil)))
 
-        ;crs ^CoordinateReferenceSystem (.getCoordinateReferenceSystem2D coverage)
-        ;env ^Envelope (.getEnvelope coverage)
-        image ^RenderedImage (.getRenderedImage coverage)
+            ;crs ^CoordinateReferenceSystem (.getCoordinateReferenceSystem2D coverage)
+            ;env ^Envelope (.getEnvelope coverage)
+            image                      ^RenderedImage (.getRenderedImage coverage)
 
-        width (.getWidth image)
-        height (.getHeight image)
-        raster ^Raster (.getData image)
+            width                      (.getWidth image)
+            height                     (.getHeight image)
+            raster                     ^Raster (.getData image)
 
-        hmap (make-array Float/TYPE width height)]
+            hmap                       (make-array Float/TYPE width height)]
 
-    (println "Calculating samples and min/max (z-lift: " z-lift ", mult: " multiplier ")")
-    (let [keys (vec (for [w (range width) h (range height)]
-                      [w h]))
-          samples (vec (for [[w h] keys]
-                         (let [s (.getSampleFloat raster w h 0)
-                               ;s2 (.getRGB image w h)
-                               s' (if (> s 0)
-                                    (+ z-lift (* multiplier (/ s pixel-size-in-height-units)))
-                                    0)]
-                           ;(println w h s s')
-                           s')))
-          min (reduce min-fn samples)
-          max (reduce max samples)]
-      (println "min:" min "max:" max "width:" width "height:" height)
-      (when (> min 10)
-        (println "min is over 10, consider a lower z-lift value"))
-      (println "Converting to java array")
-      (doseq [i (range (count samples))]
-        (let [[w h] (get keys i)
-              sample (get samples i)]
-          (aset-float hmap (- (- width 1) w) h
-                      sample))))
+        (println "Calculating samples and min/max (z-lift: " z-lift ", mult: " multiplier ")")
+        (let [keys    (vec (for [w (range width) h (range height)]
+                             [w h]))
+              samples (vec (for [[w h] keys]
+                             (let [s  (.getSampleFloat raster w h 0)
+                                   ;s2 (.getRGB image w h)
+                                   s' (if (> s 0)
+                                        (+ z-lift (* multiplier (/ s pixel-size-in-height-units)))
+                                        0)]
+                               ;(println w h s s')
+                               s')))
+              min     (reduce min-fn samples)
+              max     (reduce max samples)]
+          (println "min:" min "max:" max "width:" width "height:" height)
+          (when (> min 10)
+            (println "min is over 10, consider a lower z-lift value"))
+          (println "Converting to java array")
+          (doseq [i (range (count samples))]
+            (let [[w h] (get keys i)
+                  sample (get samples i)]
+              (aset-float hmap (- (- width 1) w) h
+                sample))))
 
 
-    (println "Saving STL")
-    (let [stl (StlObject/fromHeightmap name height width hmap)]
-      (set! (. stl -path) name)
-      (.save stl StlObject/FILE_BINARY))))
+        (println "Saving STL")
+        (let [stl (StlObject/fromHeightmap name height width hmap)]
+          (set! (. stl -path) name)
+          (.save stl StlObject/FILE_BINARY))))))
 
 
 ;; TODO incorporate GDAL slicing back into the new GeoTiff code above

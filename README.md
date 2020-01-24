@@ -7,18 +7,15 @@ I generally make models of watersheds, which you can see at
 
 run on the command line:
 ```
-java -jar GeoTiff2STL.jar -m 4.0 -z 5.0 ../yuba/yuba-albers-200m.tif
+clojure -m hellogeotiff -l 10 -s 27.514 ../yuba/DEM-yuba-27m-albers.tif
 ```
 
-or run a repl and then:
+There are some commandline options:
 ```
-(-main "../yuba/yuba-albers-200m.tif" "4.0" "5.0")
+Options:
+  -m, --multiplier MULT  4    Height Multiplier exagerate the height of the model by this multiple
+  -l, --lift LIFT        0    Lift/Reduce the overall height of the model
+  -s, --size SIZE        100  Cell Size in height units (=> 100 means 100m resolution cells with elevation in meters)
+  -h, --help
 ```
-
-
-There are two commandline options:
-
-`-m`     multiplier: increases the vertical height of the output model
-
-`-z`     z-lift: alters the overall height of the model, a negative number will lower it
 

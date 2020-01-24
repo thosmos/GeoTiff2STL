@@ -8,7 +8,7 @@
            org.geotools/gt-main             {:mvn/version "22.2"}
            org.geotools/gt-geotiff          {:mvn/version "22.2"}
            org.geotools/gt-epsg-hsql        {:mvn/version "22.2"}
-           org.clojure/tools.cli            {:mvn/version "0.3.5"}}
+           org.clojure/tools.cli            {:mvn/version "0.4.2"}}
  :mvn/repos
           {"boundlessgeo" {:url "https://repo.boundlessgeo.com/main/"}
            "geotoolkit"   {:url "https://maven.geotoolkit.org"}
