@@ -187,8 +187,9 @@
                 sample))))
 
 
-        (println "Saving STL")
-        (let [stl (StlObject/fromHeightmap name height width hmap)]
+        (println "Calculating points")
+        (let [stl (StlObject/fromHeightmap name height width hmap)
+              _ (println "Writing to binary STL file")]
           (set! (. stl -path) name)
           (.save stl StlObject/FILE_BINARY))))))
 

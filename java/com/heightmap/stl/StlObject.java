@@ -1,12 +1,6 @@
 package com.heightmap.stl;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.RandomAccessFile;
-import java.io.Serializable;
+import java.io.*;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.text.NumberFormat;
@@ -219,50 +213,46 @@ public class StlObject extends ModelObject implements Serializable {
 		this.filetype = "ASCII";
 	}
 
+
 	public void writeToBinary() throws Exception {
+
+		System.out.println("Writing to Binary v2");
 
 		Date startTime = new Date();
 
 		new File(this.path).delete();
 
-		RandomAccessFile out = null;
+		OutputStream os = new FileOutputStream(this.path);
+		DataOutputStream out = new DataOutputStream(os);
 
 		double percent = 0;
 
-		byte[] b;
-		out = new RandomAccessFile(new File(this.path), "rw");
-
-		b = new byte[80];
 		for(int i = 0; i < header.length(); i++){
-			b[i] = (byte)header.charAt(i);
+			out.write((byte)header.charAt(i));
 		}
-		out.write(b);
-		b = ByteBuffer.allocate(4).putInt((points.length / 9)).array();
-		for(int i = b.length-1; i >= 0; i--){
-			out.write(b[i]);
-		}
+
+		out.writeInt((points.length / 9));
 
 		for(int i = 0; i < points.length; i += 9){
 			if(normal != null){
-				writeFloat(out, normal[i]);
-				writeFloat(out, normal[i+1]);
-				writeFloat(out, normal[i+2]);
+				out.writeFloat(normal[i]);
+				out.writeFloat(normal[i+1]);
+				out.writeFloat(normal[i+2]);
 			} else {
-				writeFloat(out, 0);
-				writeFloat(out, 0);
-				writeFloat(out, 0);
+				out.writeFloat(0);
+				out.writeFloat(0);
+				out.writeFloat(0);
 			}
-			
 
-			writeFloat(out, points[i]);
-			writeFloat(out, points[i+1]);
-			writeFloat(out, points[i+2]);
-			writeFloat(out, points[i+3]);
-			writeFloat(out, points[i+4]);
-			writeFloat(out, points[i+5]);
-			writeFloat(out, points[i+6]);
-			writeFloat(out, points[i+7]);
-			writeFloat(out, points[i+8]);
+			out.writeFloat(points[i]);
+			out.writeFloat(points[i+1]);
+			out.writeFloat(points[i+2]);
+			out.writeFloat(points[i+3]);
+			out.writeFloat(points[i+4]);
+			out.writeFloat(points[i+5]);
+			out.writeFloat(points[i+6]);
+			out.writeFloat(points[i+7]);
+			out.writeFloat(points[i+8]);
 
 			out.write(new byte[]{0, 0});
 

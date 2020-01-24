@@ -37,7 +37,7 @@ public class Main {
             try {
                 file = new File(args[0]);
                 //base_height = new Float(args[2]);
-                model_height = new Float(args[1]);
+                model_height = Float.parseFloat(args[1]);
 
                 System.out.println("File: " + file.getName());
                 System.out.println("Elevation multiplier: " + model_height);
@@ -55,7 +55,7 @@ public class Main {
                 String filename = file.getName();
                 String fileEnding = filename.substring(filename.lastIndexOf("."),filename.length());
 
-                System.out.println("Processing - " + filename);
+                System.out.println("v2 Processing - " + filename);
 
 
                 Color co = null;
