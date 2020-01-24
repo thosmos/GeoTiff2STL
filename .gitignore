@@ -2,3 +2,6 @@ target
 *.stl
 *.jar
 .idea
+out
+.cpcache
+.DS_Store

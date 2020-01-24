@@ -1,0 +1,16 @@
+{:paths   ["src" "java"],
+ ;:aliases {:cambada {:extra-deps {luchiniatwork/cambada {:mvn/version "1.0.2"}}}
+ ;          :compile {:main-opts ["-m" "tools.deps.task.compile"]
+ ;                    :extra-deps {tools.deps.task.compile {:git/url "https://github.com/gfZeng/tools.deps.task.compile.git"
+ ;                                                          :sha "ee41129249ddda0fd8eddf773aa0ec466d967a68"}}}}
+ :deps
+          {org.clojure/clojure              {:mvn/version "1.10.1"}
+           org.geotools/gt-main             {:mvn/version "22.2"}
+           org.geotools/gt-geotiff          {:mvn/version "22.2"}
+           org.geotools/gt-epsg-hsql        {:mvn/version "22.2"}
+           org.clojure/tools.cli            {:mvn/version "0.3.5"}}
+ :mvn/repos
+          {"boundlessgeo" {:url "https://repo.boundlessgeo.com/main/"}
+           "geotoolkit"   {:url "https://maven.geotoolkit.org"}
+           "osgeo"        {:url "https://download.osgeo.org/webdav/geotools"}
+           "vendredi" {:url "https://repository.hellonico.info/repository/hellonico/"}}}
